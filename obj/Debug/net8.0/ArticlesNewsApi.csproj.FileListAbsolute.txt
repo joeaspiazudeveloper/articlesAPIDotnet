@@ -31,3 +31,4 @@
 /Users/jouaspiazu/Documents/dotnetAPI/ArticlesNewsApi/obj/Debug/net8.0/ArticlesNewsApi.pdb
 /Users/jouaspiazu/Documents/dotnetAPI/ArticlesNewsApi/obj/Debug/net8.0/ArticlesNewsApi.genruntimeconfig.cache
 /Users/jouaspiazu/Documents/dotnetAPI/ArticlesNewsApi/obj/Debug/net8.0/ref/ArticlesNewsApi.dll
+/Users/jouaspiazu/Documents/dotnetAPI/ArticlesNewsApi/obj/Debug/net8.0/ArticlesNewsApi.sourcelink.json

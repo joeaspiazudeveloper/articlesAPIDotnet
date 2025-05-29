@@ -52,3 +52,27 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# Ignore DLL files
+*.dll
+
+# Ignore other compiled files
+*.exe
+*.pdb
+*.cache
+*.suo
+*.user
+*.userosscache
+*.vspscc
+*.vssscc
+*.Build.0
+*.sln.docstates
+
+# Ignore node modules for frontend projects if any
+node_modules/
+
+# Ignore IDE specific files
+.idea/
+.vscode/
+*.swp
+*.swo
