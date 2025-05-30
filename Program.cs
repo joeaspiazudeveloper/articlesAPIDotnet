@@ -1,10 +1,21 @@
+using ArticlesNewsApi.Data;
 using ArticlesNewsApi.Models; // ¡Importante! Usar el namespace correcto de tu modelo
-using ArticlesNewsApi.Repositories; // ¡Importante! Usar el namespace correcto de tu repositorio
+using ArticlesNewsApi.Repositories;
+using ArticlesNewsApi.Services;
+using Microsoft.EntityFrameworkCore; // ¡Importante! Usar el namespace correcto de tu repositorio
 
 var builder = WebApplication.CreateBuilder(args);
 
 // --- Configuración de Inyección de Dependencias (DI) ---
-builder.Services.AddSingleton<IArticleRepository, InMemoryArticleRepository>();
+// 1. Register a DbContext for Sqlite
+builder.Services.AddDbContext<NewsDbContext>(options =>
+    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// 2. Register the ArticleRepository (one instance per HTTP request)
+builder.Services.AddScoped<IArticleRepository, EfCoreArticleRepository>();
+
+// 3. Register the ArticleService (one instance per HTTP request)
+builder.Services.AddScoped<ArticleService>();
 
 // Opcional: Agregar Swagger/OpenAPI para la documentación del API
 builder.Services.AddEndpointsApiExplorer();
@@ -17,32 +28,39 @@ if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
+
+    // migrate database
+    using (var scope = app.Services.CreateScope())
+    {
+        var db = scope.ServiceProvider.GetRequiredService<NewsDbContext>();
+        db.Database.Migrate();
+    }
 }
 
 app.UseHttpsRedirection();
 
-// --- Definición de los Endpoints del Minimal API (CRUD para Articles) ---
+// Define endpoints for the API
 
 // GET /articles - Obtener todos los artículos
-app.MapGet("/articles", async (IArticleRepository repo) =>
+app.MapGet("/articles", async (ArticleService service) =>
 {
-    var articles = await repo.GetArticlesAsync(); // <-- Ahora llama al método correcto GetArticlesAsync
+    var articles = await service.GetArticlesAsync(); // <-- Ahora llama al método correcto GetArticlesAsync
     return Results.Ok(articles);
 })
 .WithName("GetAllArticles")
 .WithOpenApi();
 
 // GET /articles/{id} - Obtener un artículo por ID
-app.MapGet("/articles/{id:int}", async (int id, IArticleRepository repo) =>
+app.MapGet("/articles/{id:int}", async (int id, ArticleService service) =>
 {
-    var article = await repo.GetArticleByIdAsync(id);
+    var article = await service.GetArticleByIdAsync(id);
     return article != null ? Results.Ok(article) : Results.NotFound();
 })
 .WithName("GetArticleById")
 .WithOpenApi();
 
 // POST /articles - Crear un nuevo artículo
-app.MapPost("/articles", async (Article article, IArticleRepository repo) =>
+app.MapPost("/articles", async (Article article, ArticleService service) =>
 {
     if (string.IsNullOrWhiteSpace(article.Title) || string.IsNullOrWhiteSpace(article.Description))
     {
@@ -52,21 +70,21 @@ app.MapPost("/articles", async (Article article, IArticleRepository repo) =>
     article.Id = 0; // Asegurarse de que el ID es 0 y será asignado por el repositorio
     article.PublishedDate = DateTime.UtcNow;
 
-    await repo.AddArticleAsync(article);
+    await service.AddArticleAsync(article);
     return Results.Created($"/articles/{article.Id}", article);
 })
 .WithName("CreateArticle")
 .WithOpenApi();
 
 // PUT /articles/{id} - Actualizar un artículo existente
-app.MapPut("/articles/{id:int}", async (int id, Article article, IArticleRepository repo) =>
+app.MapPut("/articles/{id:int}", async (int id, Article article, ArticleService service) =>
 {
     if (id != article.Id)
     {
         return Results.BadRequest("El ID en la URL no coincide con el ID del cuerpo.");
     }
 
-    var existingArticle = await repo.GetArticleByIdAsync(id);
+    var existingArticle = await service.GetArticleByIdAsync(id);
     if (existingArticle == null)
     {
         return Results.NotFound();
@@ -77,22 +95,22 @@ app.MapPut("/articles/{id:int}", async (int id, Article article, IArticleReposit
         return Results.BadRequest("El título y la descripción no pueden estar vacíos para la actualización.");
     }
 
-    await repo.UpdateArticleAsync(article);
+    await service.UpdateArticleAsync(article);
     return Results.NoContent();
 })
 .WithName("UpdateArticle")
 .WithOpenApi();
 
 // DELETE /articles/{id} - Eliminar un artículo
-app.MapDelete("/articles/{id:int}", async (int id, IArticleRepository repo) =>
+app.MapDelete("/articles/{id:int}", async (int id, ArticleService service) =>
 {
-    var existingArticle = await repo.GetArticleByIdAsync(id);
+    var existingArticle = await service.GetArticleByIdAsync(id);
     if (existingArticle == null)
     {
         return Results.NotFound();
     }
 
-    await repo.DeleteArticleAsync(id);
+    await service.DeleteArticleAsync(id);
     return Results.NoContent();
 })
 .WithName("DeleteArticle")
